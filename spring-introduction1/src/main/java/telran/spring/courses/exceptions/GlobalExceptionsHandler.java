@@ -21,7 +21,7 @@ public class GlobalExceptionsHandler {
 		LOG.error("Server says: {}", e.getMessage());
 		return e.getMessage();
 	}
-
+	// V.R. There isn't processing of code=404 NotFoundException
 	@ExceptionHandler(RuntimeException.class)
 	@ResponseStatus(value = HttpStatus.INTERNAL_SERVER_ERROR)
 	String getStandardExceptionText(RuntimeException e) {

@@ -57,7 +57,10 @@ public class Course {
 		Course other = (Course) obj;
 		if (id != other.id) {
 			return false;
-		}if(!course.equals(other.course) || !lecturer.equals(other.lecturer)) {
+		}
+		// V.R. Comaring of courses and lectures are not necessary.
+		// The comparing of Id is enough
+		if(!course.equals(other.course) || !lecturer.equals(other.lecturer)) {
 			return false;
 		}
 		    return true;
