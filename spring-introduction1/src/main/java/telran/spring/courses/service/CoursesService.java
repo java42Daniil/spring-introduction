@@ -4,6 +4,10 @@ import java.util.List;
 
 import telran.spring.courses.dto.Course;
 
+/* V.R.
+ * This interface has extend Serializable.
+ * save() and restore() will not work without it.
+ */
 public interface CoursesService {
 	Course addCourse(Course course);
 	

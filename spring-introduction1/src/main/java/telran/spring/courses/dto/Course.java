@@ -1,6 +1,10 @@
 package telran.spring.courses.dto;
 
 import javax.validation.constraints.*;
+/* V.R.
+ * This interface has implement Serializable.
+ * save() and restore() will not work without it.
+ */
 
 public class Course {
 	private static final long MIN_HOURS = 80;
