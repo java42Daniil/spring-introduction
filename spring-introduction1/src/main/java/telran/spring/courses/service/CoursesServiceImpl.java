@@ -1,56 +1,148 @@
 package telran.spring.courses.service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+
+import org.slf4j.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import telran.spring.courses.dto.Course;
 import telran.spring.courses.exceptions.NotFoundException;
-
+import static telran.spring.courses.api.ApiConstants.*;
 @Service
-public class CoursesServiceImpl implements CoursesService {
+public class CoursesServiceImpl implements CoursesService{
+@Value("${app.interval.minutes: 1}")
+	int interval;
+	static Logger LOG = LoggerFactory.getLogger(CoursesService.class);
+	private static final long serialVersionUID = 1L;
+	private transient String fileName = "courses.data";
+	private transient CoursesSavingThread savingThread;
 
-	public Map<Integer, Course> courses = new HashMap<>();
-
+		
+	private Map<Integer, Course> courses = new HashMap<>();
 	@Override
-	public Course addCourse(Course course) {
-		course.id = generateId(course.id);
-		courses.put((int) course.id, course);
+	public  Course addCourse(Course course) {
+	    course.id = generateId();
+	    Course res = add(course);
+	   
+	    return res;
+	}
+
+	private Course add(Course course) {
+		courses.put(course.id, course);
 		return course;
 	}
+
+	@Override
+	public List<Course> getAllCourses() {
+	    
+	    return new ArrayList<>(courses.values());
+	}
+
 	
+	private Integer generateId() {
+	    ThreadLocalRandom random = ThreadLocalRandom.current();
+	    int randomId;
 
-	@Override
-	public List<Course> getCourses() {
-		if(courses.size() == 0) {
-			throw new NotFoundException(
-					"The list of courses is empty");
-		}
-		return new ArrayList<>(courses.values());
+	    do {
+	        randomId = random.nextInt(MIN_ID, MAX_ID);
+	    } while (exists(randomId));
+	    return randomId;
+	}
+
+	private boolean exists(int id) {
+		return courses.containsKey(id);
 	}
 
 	@Override
-	public Course getCourse(long id) {
-		if(!courses.containsKey(id)) {
-			throw new NotFoundException(String.format(
-					"course id=%d isn't found", id));
+	public Course getCourse(int id) {
+		Course course = courses.get(id);
+		if (course == null) {
+			throw new NotFoundException(String.format("course with id %d not found", id));
 		}
-		return courses.get(id);
+		return course;
 	}
-	private long generateId(long existingId) {
-		if (!courses.containsKey(existingId)) {
-			return existingId;
+
+	@Override
+	public Course removeCourse(int id) {
+		Course course = courses.remove(id);
+		if (course == null){
+			throw new NotFoundException(String.format("course with id %d not found", id));
 		}
-		while (true) {
-			long id = new Random().nextLong(1, 999999);
-			if (!courses.containsKey(id)) {
-				return id;
+		return course;
+	}
+
+	@Override
+	public Course updateCourse(int id, Course course) {
+		
+		Course courseUpdated = courses.replace(id, course);
+		if (courseUpdated == null){
+			throw new NotFoundException(String.format("course with id %d not found", id));
+		}
+		return courseUpdated;
+	}
+
+	@Override
+	public void restore() {
+		File inputFile = new File(fileName);
+		if (inputFile.exists()) {
+			try (ObjectInputStream input = new ObjectInputStream(new FileInputStream(inputFile))) {
+				CoursesServiceImpl coursesFromFile = (CoursesServiceImpl) input.readObject();
+				this.courses = coursesFromFile.courses;
+			} catch (Exception e) {
+				throw new RuntimeException(e.getMessage());
+			} 
+		}
+	}
+
+
+	@Override
+	public void save() {
+		try(ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(fileName))) {
+			output.writeObject(this);
+		} catch (Exception e) {
+			throw new RuntimeException(e.getMessage());
+		}
+	}
+	@PostConstruct
+	void restoreInvocation() throws InterruptedException {
+		LOG.debug("interval: {}", interval);
+		restore();
+		savingThread = new CoursesSavingThread();
+		savingThread.start();
+	}
+	@PreDestroy
+	void saveInvocation() {
+		LOG.debug("Destroy...");
+	}
+	private class CoursesSavingThread extends Thread {
+
+		public CoursesSavingThread() {
+			setDaemon(true);
+		}
+		@Override
+		public void run() {
+			while(true) {
+				try {
+					sleep(interval*1000*60);
+					save();
+					LOG.debug("Saving is done");
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+					LOG.debug("sleep is interruped");
+					break;
+				}
 			}
+			LOG.debug("CoursesSavingThread is stopped");
 		}
 	}
-
-}
+	}

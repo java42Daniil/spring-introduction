@@ -1,65 +1,22 @@
 package telran.spring.courses.dto;
 
-import java.time.LocalDate;
-
 import javax.validation.constraints.*;
 
 public class Course {
-
-	@Min(value=1)
-	@Max(value=99999)
-	public long id;
-	@NotNull
+	private static final long MIN_HOURS = 80;
+	private static final long MAX_HOURS = 500;
+	private static final long MIN_COST = 5000;
+	private static final long MAX_COST = 20000;
+	public Integer id;
 	@NotEmpty
 	public String course;
-	@NotNull
 	@NotEmpty
-    public String lecturer;
-	@Min(value = 1000)
-	@Max(value = 30000)
-    public int cost;
-	@Min(value = 50)
-	@Max(value = 600)
-    public int hours;
+	public String lecturer;
+	@Min(MIN_HOURS) @Max(MAX_HOURS)
+	public int hours;
+	 @Min(MIN_COST) @Max(MAX_COST)
+	public int cost;
 	@NotNull
-    public LocalDate openingDate;
-    
-    public Course() {
-    	
-    }
-    
-	public Course(String course, String lecturer, int cost, int hours, LocalDate openingDate) {
-		this.id = id;
-		this.course = course;
-		this.lecturer = lecturer;
-		this.cost = cost;
-		this.hours = hours;
-		this.openingDate = openingDate;
-	}
-	public Course(Course course) {
-		this.id = course.id;
-		this.course = course.course;
-		this.lecturer = course.lecturer;
-		this.cost = course.cost;
-		this.hours = course.hours;
-		this.openingDate = course.openingDate;
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}if (obj == null) {
-			return false;
-		}if (getClass() != obj.getClass()) {
-			return false;
-		}
-		Course other = (Course) obj;
-		if (id != other.id) {
-			return false;
-		}if(!course.equals(other.course) || !lecturer.equals(other.lecturer)) {
-			return false;
-		}
-		    return true;
-	}
+	@Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}.*")
+	public String openingDate;
 }
