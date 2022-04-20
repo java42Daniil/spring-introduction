@@ -1,10 +1,6 @@
 package telran.spring.courses.service;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -19,14 +15,19 @@ import telran.spring.courses.dto.Course;
 import telran.spring.courses.exceptions.NotFoundException;
 import static telran.spring.courses.api.ApiConstants.*;
 @Service
-public class CoursesServiceImpl implements CoursesService{
+public class CoursesServiceImpl implements CoursesService, Serializable{
+/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+private static final int MILLIS_IN_MINUTE = 60000;
 @Value("${app.interval.minutes: 1}")
 	int interval;
 	static Logger LOG = LoggerFactory.getLogger(CoursesService.class);
-	private static final long serialVersionUID = 1L;
-	private transient String fileName = "courses.data";
-	private transient CoursesSavingThread savingThread;
-
+	
+	@Value("${app.file.name: courses.data}")
+	String fileName;	
+		
 		
 	private Map<Integer, Course> courses = new HashMap<>();
 	@Override
@@ -41,6 +42,10 @@ public class CoursesServiceImpl implements CoursesService{
 		courses.put(course.id, course);
 		return course;
 	}
+
+	
+
+	
 
 	@Override
 	public List<Course> getAllCourses() {
@@ -91,58 +96,55 @@ public class CoursesServiceImpl implements CoursesService{
 		return courseUpdated;
 	}
 
-	@Override
-	public void restore() {
-		File inputFile = new File(fileName);
-		if (inputFile.exists()) {
-			try (ObjectInputStream input = new ObjectInputStream(new FileInputStream(inputFile))) {
-				CoursesServiceImpl coursesFromFile = (CoursesServiceImpl) input.readObject();
-				this.courses = coursesFromFile.courses;
-			} catch (Exception e) {
-				throw new RuntimeException(e.getMessage());
-			} 
+	
+	private void restore() {
+		try(ObjectInputStream input = new ObjectInputStream(new FileInputStream(fileName))){
+			CoursesServiceImpl coursesRestored = (CoursesServiceImpl) input.readObject();
+			courses = coursesRestored.courses;
+			LOG.debug("service has been restored from file {}", fileName);
+			
+		} catch(FileNotFoundException e) {
+			LOG.warn("service has not been restored - no file {} found", fileName);
+			
+		} 
+		catch (Exception e) {
+			throw new RuntimeException(e.getMessage());
 		}
+		
 	}
 
-
-	@Override
-	public void save() {
-		try(ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(fileName))) {
+	
+	private void save() {
+		try(ObjectOutputStream output =
+				new ObjectOutputStream(new FileOutputStream(fileName))) {
 			output.writeObject(this);
+			
 		} catch (Exception e) {
 			throw new RuntimeException(e.getMessage());
 		}
+		
 	}
 	@PostConstruct
-	void restoreInvocation() throws InterruptedException {
-		LOG.debug("interval: {}", interval);
+	void restoreInvocation() {
 		restore();
-		savingThread = new CoursesSavingThread();
-		savingThread.start();
+		Thread thread = new Thread(() -> {
+			try {
+				Thread.sleep(interval * MILLIS_IN_MINUTE);
+				save();
+			} catch (InterruptedException e) {
+				
+			}
+			
+			LOG.debug("courses data saved into file {}", fileName);
+		});
+		thread.setDaemon(true);
+		thread.start();
 	}
 	@PreDestroy
-	void saveInvocation() {
-		LOG.debug("Destroy...");
+	void persistCoursesData() {
+		save();
+		LOG.debug("courses data saved into file {}", fileName);
+		
 	}
-	private class CoursesSavingThread extends Thread {
+	}
 
-		public CoursesSavingThread() {
-			setDaemon(true);
-		}
-		@Override
-		public void run() {
-			while(true) {
-				try {
-					sleep(interval*1000*60);
-					save();
-					LOG.debug("Saving is done");
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-					LOG.debug("sleep is interruped");
-					break;
-				}
-			}
-			LOG.debug("CoursesSavingThread is stopped");
-		}
-	}
-	}

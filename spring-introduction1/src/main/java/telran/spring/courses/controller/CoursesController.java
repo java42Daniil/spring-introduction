@@ -6,6 +6,7 @@ import javax.validation.*;
 
 import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,9 +21,9 @@ public class CoursesController {
 	static Logger LOG = LoggerFactory.getLogger(CoursesController.class);
 	@Autowired
 	private CoursesService coursesService;
+	
 
 	@PostMapping
-	
 	Course addCourse(@RequestBody @Valid Course course) {
 		Course courseAdded = coursesService.addCourse(course);
 		LOG.debug("added course with id {} ", courseAdded.id);
@@ -59,5 +60,6 @@ public class CoursesController {
 		LOG.debug("course with id {} has been updated ", course.id);
 		return courseUpdated;
 	}
+	
 
 }
